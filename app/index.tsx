@@ -3,30 +3,43 @@ import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function App() {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState("0");
+  const [result, setResult] = useState("0");
+
+  const evaluateExpression = (expr: string) => {
+    expr = expr.trim();
+    expr = expr.replace(/[\+\-\*\/]+$/, "");
+    if (!expr) return "0";
+
+    const regex = /^-?\d+(\.\d+)?(\s*[\+\-\*\/]\s*-?\d+(\.\d+)?)*$/;
+    if (!regex.test(expr)) return "0";
+
+    try {
+      return Function(`"use strict"; return (${expr})`)().toString();
+    } catch {
+      return "0";
+    }
+  };
 
   const handlePress = (value: string): void => {
     if (value === "C") {
-      setInput("");
+      setInput("0");
+      setResult("0");
     } else if (value === "D") {
-      setInput(input.slice(0, -1));
+      const newInput = input.length > 1 ? input.slice(0, -1) : "0";
+      setInput(newInput);
+      setResult(evaluateExpression(formatExpression(newInput)));
     } else if (value === "=") {
-      if (!input || input === "0") return;
-      try {
-        // Replace custom symbols with JS operators
-        const expression = input
-          .replace(/×/g, "*")
-          .replace(/÷/g, "/")
-          .replace(/%/g, "/100");
-
-        setInput(eval(expression).toString());
-      } catch {
-        setInput("Error");
-      }
+      setInput(result);
     } else {
-      setInput(input + value);
+      const newInput = input === "0" ? value : input + value;
+      setInput(newInput);
+      setResult(evaluateExpression(formatExpression(newInput)));
     }
   };
+
+  const formatExpression = (expr: string) =>
+    expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/%/g, "/100");
 
   const buttons = [
     ["D", "C", "%", "÷"],
@@ -48,7 +61,12 @@ export default function App() {
   return (
     <View style={styles.container}>
       <View style={styles.display}>
-        <Text style={styles.displayText}>{input || "0"}</Text>
+        <Text numberOfLines={1} ellipsizeMode="head" style={styles.inputText}>
+          {result}
+        </Text>
+        <Text numberOfLines={1} ellipsizeMode="head" style={styles.resultText}>
+          {input || "0"} 
+        </Text>
       </View>
       <View style={styles.buttons}>
         {buttons.map((row, rowIndex) => (
@@ -75,14 +93,15 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: "#000" },
   display: {
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "flex-end",
     padding: 20,
   },
-  displayText: { fontSize: 40, color: "#fff" },
+  resultText: { fontSize: 60, color: "#fff", fontWeight: "700" },
+  inputText: { fontSize: 32, color: "#888", marginTop: 5 },
   buttons: { flex: 2, padding: 10 },
   row: {
     flexDirection: "row",
