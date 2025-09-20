@@ -1,10 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Animated, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+const { height } = Dimensions.get("window");
 
 export default function App() {
   const [input, setInput] = useState("0");
   const [result, setResult] = useState("0");
+  const [history, setHistory] = useState<{ expr: string; res: string }[]>([]);
+  const [historyVisible, setHistoryVisible] = useState(false);
+
+  const slideAnim = useRef(new Animated.Value(height)).current;
 
   const evaluateExpression = (expr: string) => {
     expr = expr.trim();
@@ -31,6 +37,7 @@ export default function App() {
       setResult(evaluateExpression(formatExpression(newInput)));
     } else if (value === "=") {
       setInput(result);
+      setHistory([{ expr: input, res: result }, ...history]);
     } else {
       const newInput = input === "0" ? value : input + value;
       setInput(newInput);
@@ -40,6 +47,23 @@ export default function App() {
 
   const formatExpression = (expr: string) =>
     expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/%/g, "/100");
+
+  const toggleHistory = () => {
+    if (!historyVisible) {
+      setHistoryVisible(true);
+      Animated.timing(slideAnim, {
+        toValue: height * 0.2,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: height,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setHistoryVisible(false));
+    }
+  };
 
   const buttons = [
     ["D", "C", "%", "÷"],
@@ -60,6 +84,11 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      {/* Top Left I Button */}
+      <TouchableOpacity style={styles.infoButton} onPress={toggleHistory}>
+        <Ionicons name="information-circle-outline" size={32} color="#fff" />
+      </TouchableOpacity>
+
       <View style={styles.display}>
         <Text numberOfLines={1} ellipsizeMode="head" style={styles.inputText}>
           {result}
@@ -68,6 +97,7 @@ export default function App() {
           {input || "0"} 
         </Text>
       </View>
+
       <View style={styles.buttons}>
         {buttons.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.row}>
@@ -88,12 +118,28 @@ export default function App() {
           </View>
         ))}
       </View>
+
+      {/* History Sliding Panel */}
+      {historyVisible && (
+        <Animated.View style={[styles.historyPanel, { top: slideAnim }]}>
+          <Text style={styles.historyTitle}>History</Text>
+          <ScrollView>
+            {history.map((item, index) => (
+              <View key={index} style={styles.historyItem}>
+                <Text style={styles.historyExpr}>{item.expr}</Text>
+                <Text style={styles.historyRes}>{item.res}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
+  infoButton: { position: "absolute", top: 40, left: 20, zIndex: 10 },
   display: {
     flex: 1,
     justifyContent: "flex-end",
@@ -102,6 +148,24 @@ const styles = StyleSheet.create({
   },
   resultText: { fontSize: 60, color: "#fff", fontWeight: "700" },
   inputText: { fontSize: 32, color: "#888", marginTop: 5 },
+
+  // History Panel
+  historyPanel: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: height * 0.8,
+    backgroundColor: "#111",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  historyTitle: { color: "#fff", fontSize: 24, fontWeight: "700", marginBottom: 10 },
+  historyItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  historyExpr: { color: "#ccc", fontSize: 18 },
+  historyRes: { color: "#fff", fontSize: 18, fontWeight: "700" },
+
   buttons: { flex: 2, padding: 10 },
   row: {
     flexDirection: "row",
